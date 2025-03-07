@@ -1,0 +1,87 @@
+services:
+  spark-master:
+    container_name: da-spark-master
+    build: .
+    image: da-spark-image
+    entrypoint: ['./entrypoint.sh', 'master']
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - ./spark_apps:/opt/spark/apps
+      - ./data:/opt/spark/data
+    env_file:
+      - .env.spark
+    ports:
+      - '9090:8080'
+      - '7077:7077'
+
+
+  spark-history-server:
+    container_name: da-spark-history
+    image: da-spark-image
+    entrypoint: ['./entrypoint.sh', 'history']
+    depends_on:
+      - spark-master
+    env_file:
+      - .env.spark
+    volumes:
+      - spark-logs:/opt/spark/spark-events
+    ports:
+      - '18080:18080'
+
+  spark-worker:
+#    container_name: da-spark-worker
+    image: da-spark-image
+    entrypoint: ['./entrypoint.sh', 'worker']
+    depends_on:
+      - spark-master
+    env_file:
+      - .env.spark
+    volumes:
+      - ./spark_apps:/opt/spark/apps
+      - ./data:/opt/spark/data
+      - spark-logs:/opt/spark/spark-events
+
+  jupyter:
+    image: jupyter/pyspark-notebook
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./spark_apps:/home/jovyan/work/apps
+      - ./data:/home/jovyan/work/data
+    depends_on:
+      - spark-master
+
+  postgres:
+    image: postgres:13
+    container_name: postgres_container
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio:latest  
+    container_name: minio-server
+    ports:
+      - "9000:9000"  
+      - "9001:9001"  
+    volumes:
+      - minio_data:/data  
+    environment:
+      MINIO_ROOT_USER: minioadmin  
+      MINIO_ROOT_PASSWORD: minioadmin  
+    command: server /data --console-address ":9001"
+
+volumes:
+  spark-logs:
+  postgres_data:
+  minio_data:

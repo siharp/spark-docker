@@ -1,0 +1,5 @@
+.vscode
+spark_apps/.ipynb_checkpoints
+spark_apps/fhvhv
+data/*.csv
+
